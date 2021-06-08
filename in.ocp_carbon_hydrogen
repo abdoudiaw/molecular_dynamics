@@ -1,0 +1,120 @@
+# Jun 08 2019
+# Author: Abdourahmane Diaw (diaw@radiasoft.net)
+# LAMMPS script for radial distribution function of a binary plasma.
+# Physical conditions considered: Carbon and Hydrogen
+# total density 1e25 cc, T=100 eV, concentration at 50%.
+# Fix ave/time to compute RDF
+
+
+echo both
+
+#############  begin parameters ################################
+# All quantities are in cgs units
+
+
+variable Temp     equal 100.*11600
+variable ZH       equal 1.0
+variable ZC       equal 6.0
+
+# Plasma parameters
+
+variable       Npart        equal   1000 # ------> change this to 2000 to get less noisy results
+variable       xlen         equal   2e-08
+variable       gdis         equal   ${xlen}/160
+variable       prcoeff      equal   2.306881e-19
+variable       charge_H     equal   4.803000e-10*${ZH}
+variable       charge_C     equal   4.803000e-10*${ZC}
+variable       Imas_H       equal   1.*1.660000e-24
+variable       Imas_C       equal   12.*1.660000e-24
+
+# Runtime
+
+variable teq   equal 2000       # equilibration time 
+variable trun  equal 2000       # production time  ------> change this to 200000 to get less noisy results
+
+variable d     equal floor(${trun}/100) # dump time
+variable freq  equal floor(${trun}/10) # production run
+
+# MD setup
+
+units             cgs
+atom_style        charge
+newton            on
+dimension         3
+boundary          p p p
+
+lattice          sc ${gdis}
+region           simbox block 0 ${xlen} 0 ${xlen} 0 ${xlen} units box
+create_box    2  simbox
+
+create_atoms    1 random ${Npart}  257349 simbox
+create_atoms    2 random ${Npart}  157349 simbox
+
+group atom1 type 1
+group atom2 type 2
+
+# Charges and masses of species
+
+set    type 1 charge  ${charge_H}
+set    type 2 charge  ${charge_C}
+
+mass        1 ${Imas_H}
+mass        2 ${Imas_C}
+
+# Params
+
+variable       dens      equal     count(all)/vol
+variable       rc        equal     lx/2
+variable       dbin      equal     0.1*${rc}
+variable       wp        equal     1.2e3*sqrt(${dens})
+variable       dtstep    equal     1.0/(300.*${wp})
+variable       Tdamp     equal     1e2*${dtstep}
+
+
+# Define interactions here
+
+pair_style      coul/long     ${rc}
+pair_coeff      *   *
+
+neighbor         ${dbin}       bin
+neigh_modify     every         1 delay 0  check yes page 50000 one 5000
+pair_modify      table         0
+kspace_style     ewald      1e-4
+
+
+timestep          ${dtstep}
+
+# Initial velocities and thermostats
+
+velocity         all create ${Temp} 102486 dist gaussian units box
+
+fix             nvtid all nvt temp ${Temp} ${Temp} ${Tdamp}
+
+thermo            $d
+thermo_style      custom step pe ke etotal temp vol
+thermo_modify     flush yes
+
+run      ${teq}
+
+unfix                   nvtid
+
+velocity all scale ${Temp}
+
+reset_timestep          0
+
+fix         nveid         all     nve
+
+
+variable fileTag string gofr_BIM_CH.csv
+
+
+compute     myRDF330 all rdf 1024  1 1 1 2 2 2
+fix         rdfid330 all ave/time 1 ${freq} ${trun} c_myRDF330[1] c_myRDF330[2]  c_myRDF330[4] c_myRDF330[6] file ${fileTag} mode vector
+
+thermo            $d
+thermo_style      custom step pe ke etotal temp vol
+
+variable T_eV equal ${Temp}/11600.
+run      ${trun}
+
+print "Simulation done!"
