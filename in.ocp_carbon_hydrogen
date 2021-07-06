@@ -18,7 +18,7 @@ variable ZC       equal 6.0
 
 # Plasma parameters
 
-variable       Npart        equal   1000 # ------> change this to 2000 to get less noisy results
+variable       Npart        equal   100 # ------> change this to 2000 to get less noisy results
 variable       xlen         equal   2e-08
 variable       gdis         equal   ${xlen}/160
 variable       prcoeff      equal   2.306881e-19
