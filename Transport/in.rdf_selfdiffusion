@@ -1,8 +1,10 @@
 # November 24 2019
-# Author: Abdourahmane Diaw (diaw@lanl.gov)
+# Author: Abdou Diaw (diaw@lanl.gov)
 
 # LAMMPS input script for radial distribution function and self-diffusion coefficient of Yukawa plasma
 # Green-Kubo method via compute velocity flux and fix ave/correlate
+# Of course use the LAMMPS built-in vacf only for preliminary testing purposes as it yield negative values sometimes.
+# I recommend to postprocess to the trajectories to make the autocorrelation converged. 
 
 # Potential parameters
 
